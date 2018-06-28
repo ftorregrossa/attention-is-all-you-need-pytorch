@@ -313,6 +313,7 @@ class RawTransformer(nn.Module):
         self.tgt_word_proj = Linear(d_model, n_tgt_vocab, bias=False)
         self.dropout = nn.Dropout(dropout)
         self.d_model = d_model
+        self.max_seq = n_max_seq
 
         assert d_model == d_word_vec, \
         'To facilitate the residual connections, \

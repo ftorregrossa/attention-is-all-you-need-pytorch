@@ -11,7 +11,7 @@ from aiaynpt.transformer.Beam import Beam
 class RawTranslator(object):
     ''' Beam seach on Raw data '''
 
-    def __init__(self, transformer, max_token_seq_len, beam_size=5, cuda=True, n_best=5):
+    def __init__(self, transformer, max_token_seq_len, beam_size=5, cuda=True, n_best=1):
 
         self.model = transformer
         self.prob_projection = nn.LogSoftmax()
