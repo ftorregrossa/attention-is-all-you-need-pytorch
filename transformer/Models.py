@@ -148,7 +148,7 @@ class RawDecoder(nn.Module):
             DecoderLayer(d_model, d_inner_hid, n_head, d_k, d_v, dropout=dropout)
             for _ in range(n_layers)])
 
-    def forward(self, tgt_seq, tgt_pos, src_seq, enc_output, return_attns=False):
+    def forward(self, tgt_seq, tgt_pos, enc_output, return_attns=False):
         # Word embedding look up
         dec_input = self.tgt_word_emb(tgt_seq)
 
@@ -312,6 +312,7 @@ class RawTransformer(nn.Module):
             d_inner_hid=d_inner_hid, dropout=dropout)
         self.tgt_word_proj = Linear(d_model, n_tgt_vocab, bias=False)
         self.dropout = nn.Dropout(dropout)
+        self.d_model = d_model
 
         assert d_model == d_word_vec, \
         'To facilitate the residual connections, \
@@ -337,7 +338,7 @@ class RawTransformer(nn.Module):
         tgt_pos = tgt_pos[:, :-1]
 
         enc_output, *_ = self.encoder(src_seq, src_pos)
-        dec_output, *_ = self.decoder(tgt_seq, tgt_pos, src_seq, enc_output)
+        dec_output, *_ = self.decoder(tgt_seq, tgt_pos, enc_output)
         seq_logit = self.tgt_word_proj(dec_output)
 
         return seq_logit.view(-1, seq_logit.size(2))
