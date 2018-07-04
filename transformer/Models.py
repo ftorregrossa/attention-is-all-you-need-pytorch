@@ -314,6 +314,8 @@ class RawTransformer(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.d_model = d_model
         self.max_seq = n_max_seq
+        self.prob_projection = nn.LogSoftmax()
+        self.n_vocab = n_tgt_vocab
 
         assert d_model == d_word_vec, \
         'To facilitate the residual connections, \
@@ -343,3 +345,34 @@ class RawTransformer(nn.Module):
         seq_logit = self.tgt_word_proj(dec_output)
 
         return seq_logit.view(-1, seq_logit.size(2))
+
+    def forward_wft(self, src):
+        """Perform forward pass without teach forcing"""
+
+        src_seq, src_pos = src
+        enc_output, *_ = self.encoder(src_seq, src_pos)
+        est_dec = torch.zeros(src_seq.shape[0], self.max_seq - 1, dtype=torch.long)
+        est_probs = torch.zeros(src_seq.shape[0], self.max_seq - 1, self.n_vocab).cuda()
+        est_dec[:, :] = Constants.PAD
+        for i in range(1, self.max_seq):
+            # Prepare estimated target
+            est_tgt = torch.zeros(src_seq.shape[0], i, dtype=torch.long).cuda()
+            est_tgt[:, 0] = Constants.BOS
+            if i > 1:
+                est_tgt[:, 1:] = est_dec[:, :i-1].cuda()
+            est_tgt_pos = torch.arange(1, i + 1).unsqueeze(0).repeat(src_seq.shape[0], 1).long().cuda()
+            for j in range(est_tgt_pos.shape[0]):
+                if est_dec[j, i-1] == Constants.EOS:
+                    est_tgt_pos[j, i:] = 0
+            
+            # Decode output from encoder and estimated target
+            dec_output, *_ = self.decoder(est_tgt, est_tgt_pos, enc_output)
+            dec_output = dec_output[:, -1, :]
+            dec_output = self.tgt_word_proj(dec_output)
+            est_probs[:, i-1, :] = dec_output
+            out = self.prob_projection(dec_output)
+
+            # Decode next token
+            est_dec[:, i-1] = out.max(dim=1)[1]
+        return est_probs.view(-1, est_probs.size(2))
+
