@@ -374,6 +374,6 @@ class RawTransformer(nn.Module):
             est_dec[:, i-1] = out.max(dim=1)[1]
 
         est_probs = self.tgt_word_proj(dec_output)
-        print(est_probs.shape)
+
         return est_probs.view(-1, est_probs.size(2))
 
