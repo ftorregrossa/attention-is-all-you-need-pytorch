@@ -352,7 +352,6 @@ class RawTransformer(nn.Module):
         src_seq, src_pos = src
         enc_output, *_ = self.encoder(src_seq, src_pos)
         est_dec = torch.zeros(src_seq.shape[0], self.max_seq - 1, dtype=torch.long)
-        est_probs = torch.zeros(src_seq.shape[0], self.max_seq - 1, self.n_vocab).cuda()
         est_dec[:, :] = Constants.PAD
         for i in range(1, self.max_seq):
             # Prepare estimated target
@@ -367,12 +366,14 @@ class RawTransformer(nn.Module):
             
             # Decode output from encoder and estimated target
             dec_output, *_ = self.decoder(est_tgt, est_tgt_pos, enc_output)
-            dec_output = dec_output[:, -1, :]
-            dec_output = self.tgt_word_proj(dec_output)
-            est_probs[:, i-1, :] = dec_output
-            out = self.prob_projection(dec_output)
+            last_output = dec_output[:, -1, :]
+            last_output = self.tgt_word_proj(last_output)
+            out = self.prob_projection(last_output)
 
             # Decode next token
             est_dec[:, i-1] = out.max(dim=1)[1]
+
+        est_probs = self.tgt_word_proj(dec_output)
+        print(est_probs.shape)
         return est_probs.view(-1, est_probs.size(2))
 
